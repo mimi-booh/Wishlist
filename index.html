@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mimi 🐱 ♡ Booh 🌻 — Our Wishlists</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#FDF8F3;font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
+
+.app{min-height:100vh;background:#FDF8F3;padding-bottom:60px}
+
+.hdr{
+  text-align:center;
+  padding:40px 24px 30px;
+  background:linear-gradient(155deg,#FFF6EE 0%,#FDEEE3 100%);
+  border-bottom:1px solid #F2E0D4;
+  margin-bottom:24px;
+  position:relative;
+  overflow:hidden;
+}
+.hdr::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 75% 50%,rgba(212,100,100,.07) 0%,transparent 70%);
+  pointer-events:none;
+}
+.title{
+  font-family:'Playfair Display',Georgia,serif;
+  font-size:clamp(1.9rem,5vw,2.6rem);
+  color:#2D1B0E;
+  letter-spacing:-.02em;line-height:1.2;position:relative;
+}
+.heart{
+  color:#D4145A;display:inline-block;
+  animation:hb 2.4s ease-in-out infinite;
+}
+@keyframes hb{0%,100%{transform:scale(1)}30%{transform:scale(1.28)}60%{transform:scale(1.1)}}
+.sub{
+  font-family:'Playfair Display',serif;font-style:italic;
+  color:#9C7B6A;font-size:.95rem;margin-top:6px;
+  letter-spacing:.025em;position:relative;
+}
+
+.grid{
+  max-width:1020px;margin:0 auto;
+  padding:0 18px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;align-items:start;
+}
+
+.card{
+  background:#fff;border-radius:14px;
+  box-shadow:0 2px 12px rgba(45,27,14,.07),0 0 0 1px rgba(45,27,14,.04);
+  border-top:4px solid var(--accent);
+  transition:box-shadow .22s,transform .22s;
+  overflow:hidden;
+}
+.card:hover{
+  box-shadow:0 7px 26px rgba(45,27,14,.13),0 0 0 1px rgba(45,27,14,.06);
+  transform:translateY(-2px);
+}
+.card.open{box-shadow:0 8px 32px rgba(45,27,14,.15),0 0 0 1px rgba(45,27,14,.08)}
+
+.card-hdr{
+  padding:16px 18px;display:flex;
+  justify-content:space-between;align-items:center;
+  cursor:pointer;user-select:none;
+  background:var(--bg);gap:8px;
+}
+.card-left{display:flex;align-items:center;gap:10px;min-width:0}
+.cat-icon{font-size:1.35rem;flex-shrink:0}
+.cat-name{
+  font-family:'Playfair Display',serif;font-weight:700;
+  font-size:.95rem;color:#2D1B0E;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.card-right{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.badge{
+  background:var(--accent);color:#fff;
+  border-radius:12px;padding:2px 9px;
+  font-size:.7rem;font-weight:600;letter-spacing:.03em;
+}
+.chev{color:var(--accent);font-size:.65rem;opacity:.65;transition:transform .2s}
+.card.open .chev{transform:rotate(180deg)}
+
+.card-body{
+  padding:14px 18px 18px;
+  border-top:1px solid rgba(45,27,14,.07);
+  animation:fadeIn .18s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+.items{margin-bottom:14px}
+.empty{
+  text-align:center;color:#C4A897;
+  font-size:.82rem;font-style:italic;padding:12px 0;
+}
+
+.item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 0;
+  border-bottom:1px dashed rgba(45,27,14,.08);
+  transition:opacity .2s;
+}
+.item:last-child{border-bottom:none}
+.item.done{opacity:.45}
+.item.done .item-txt{text-decoration:line-through;color:#B0947A}
+
+.check-btn{
+  width:24px;height:24px;
+  border:2px solid var(--accent);border-radius:50%;
+  background:none;color:var(--accent);
+  font-size:.7rem;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .14s,color .14s;line-height:1;
+}
+.item.done .check-btn{background:var(--accent);color:#fff}
+
+.item-txt{
+  flex:1;font-size:.875rem;color:#2D1B0E;
+  line-height:1.4;min-width:0;word-break:break-word;
+}
+.item-by{font-size:.85rem;flex-shrink:0}
+.del-btn{
+  background:none;border:none;color:#D4BFB5;cursor:pointer;
+  font-size:1.1rem;line-height:1;padding:2px 4px;
+  transition:color .14s;flex-shrink:0;
+}
+.del-btn:hover{color:#D4145A}
+
+.add-form{
+  background:var(--bg);border-radius:10px;padding:12px;
+}
+.by-row{display:flex;gap:7px;margin-bottom:9px}
+.by-btn{
+  flex:1;padding:6px 0;
+  border:1.5px solid var(--accent);border-radius:7px;
+  background:transparent;color:var(--accent);
+  cursor:pointer;font-size:.78rem;font-weight:500;
+  opacity:.5;transition:all .13s;font-family:'DM Sans',sans-serif;
+}
+.by-btn.active{background:var(--accent);color:#fff;opacity:1}
+
+.inp-row{display:flex;gap:7px}
+.add-input{
+  flex:1;border:1.5px solid rgba(45,27,14,.12);
+  border-radius:7px;padding:8px 11px;
+  font-family:'DM Sans',sans-serif;font-size:.865rem;
+  color:#2D1B0E;background:#fff;outline:none;
+  transition:border-color .14s;
+}
+.add-input:focus{border-color:var(--accent)}
+.add-input::placeholder{color:#C4A897;font-style:italic}
+
+.add-btn{
+  width:36px;height:36px;border:none;border-radius:7px;
+  background:var(--accent);color:#fff;font-size:1.35rem;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:opacity .13s,transform .09s;flex-shrink:0;line-height:1;
+}
+.add-btn:hover{opacity:.85}
+.add-btn:active{transform:scale(.9)}
+
+.footer{
+  text-align:center;padding:32px;
+  color:#C4A897;font-size:.8rem;font-style:italic;
+  font-family:'Playfair Display',serif;
+}
+</style>
+</head>
+<body>
+
+<div id="root">
+  <div style="display:flex;align-items:center;justify-content:center;height:80vh;font-family:Georgia;color:#9C7B6A;font-style:italic;">
+    Loading your universe of wishes... 🌻
+  </div>
+</div>
+
+<script>
+const CATS=[
+  {id:'movies',  icon:'🎬', title:'Movies & Shows',          accent:'#7B2D8B', bg:'#F3E5F5'},
+  {id:'travel',  icon:'✈️', title:'Travel Wishlist',          accent:'#1565C0', bg:'#E3F2FD'},
+  {id:'dates',   icon:'🕯️', title:'Date Ideas',              accent:'#C2185B', bg:'#FCE4EC'},
+  {id:'fantasy', icon:'🔥', title:'Wild Fantasies',           accent:'#BF360C', bg:'#FBE9E7'},
+  {id:'music',   icon:'🎵', title:'Books, Shows & Music',     accent:'#00695C', bg:'#E0F2F1'},
+  {id:'learn',   icon:'🌱', title:'Learn Together',           accent:'#558B2F', bg:'#F1F8E9'},
+  {id:'gifts',   icon:'🎁', title:'Gifts for Each Other',     accent:'#AD1457', bg:'#FCE4EC'},
+  {id:'goals',   icon:'⭐', title:'Life Goals & Bucket List',  accent:'#E65100', bg:'#FFF3E0'},
+  {id:'food',    icon:'🍽️', title:'Restaurants to Try',      accent:'#4E342E', bg:'#EFEBE9'},
+];
+
+let items={};
+let expanded=null;
+let addBy={};
+
+CATS.forEach(c=>{
+  items[c.id]=[];
+  addBy[c.id]='mimi';
+});
+
+// Load from localStorage
+try{
+  const saved=localStorage.getItem('mb-wishlist-v1');
+  if(saved){
+    const d=JSON.parse(saved);
+    if(d.items)items=d.items;
+    if(d.addBy)addBy=d.addBy;
+  }
+}catch{}
+
+function save(){
+  try{localStorage.setItem('mb-wishlist-v1',JSON.stringify({items,addBy}));}catch{}
+}
+
+function esc(s){
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function render(){
+  const root=document.getElementById('root');
+  root.innerHTML=`
+    <div class="app">
+      <div class="hdr">
+        <h1 class="title">Mimi 🐱 <span class="heart">♡</span> Booh 🌻</h1>
+        <p class="sub">Our Little Universe of Wishes</p>
+      </div>
+      <div class="grid">
+        ${CATS.map(renderCard).join('')}
+      </div>
+      <div class="footer">made with ♡ — just for the two of you</div>
+    </div>
+  `;
+
+  // Events
+  root.querySelectorAll('.card-hdr').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.dataset.cat;
+      expanded=expanded===id?null:id;
+      render();
+    };
+  });
+  root.querySelectorAll('.check-btn').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      const{cat,item}=el.dataset;
+      items[cat]=items[cat].map(i=>i.id==item?{...i,done:!i.done}:i);
+      save();render();
+    };
+  });
+  root.querySelectorAll('.del-btn').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      const{cat,item}=el.dataset;
+      items[cat]=items[cat].filter(i=>i.id!=item);
+      save();render();
+    };
+  });
+  root.querySelectorAll('.by-btn').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      addBy[el.dataset.cat]=el.dataset.by;
+      render();
+    };
+  });
+  root.querySelectorAll('.add-input').forEach(el=>{
+    el.onkeydown=e=>{
+      if(e.key==='Enter'){e.stopPropagation();doAdd(el.dataset.cat,el.value);}
+    };
+  });
+  root.querySelectorAll('.add-btn').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      const inp=root.querySelector(`.add-input[data-cat="${el.dataset.cat}"]`);
+      if(inp)doAdd(el.dataset.cat,inp.value);
+    };
+  });
+}
+
+function doAdd(catId,val){
+  const txt=(val||'').trim();
+  if(!txt)return;
+  if(!items[catId])items[catId]=[];
+  items[catId].push({id:Date.now(),text:txt,by:addBy[catId]||'mimi',done:false});
+  save();render();
+  setTimeout(()=>{
+    const inp=document.querySelector(`.add-input[data-cat="${catId}"]`);
+    if(inp)inp.focus();
+  },15);
+}
+
+function renderCard(cat){
+  const list=items[cat.id]||[];
+  const done=list.filter(i=>i.done).length;
+  const isExp=expanded===cat.id;
+  return`
+  <div class="card${isExp?' open':''}" style="--accent:${cat.accent};--bg:${cat.bg}">
+    <div class="card-hdr" data-cat="${cat.id}">
+      <div class="card-left">
+        <span class="cat-icon">${cat.icon}</span>
+        <span class="cat-name">${cat.title}</span>
+      </div>
+      <div class="card-right">
+        ${list.length?`<span class="badge">${done}/${list.length}</span>`:''}
+        <span class="chev">▼</span>
+      </div>
+    </div>
+    ${isExp?renderBody(cat,list):''}
+  </div>`;
+}
+
+function renderBody(cat,list){
+  const by=addBy[cat.id]||'mimi';
+  return`
+  <div class="card-body">
+    <div class="items">
+      ${list.length===0
+        ?'<p class="empty">Nothing here yet — add your first wish! ✨</p>'
+        :list.map(item=>`
+          <div class="item${item.done?' done':''}">
+            <button class="check-btn" data-cat="${cat.id}" data-item="${item.id}">${item.done?'✓':'○'}</button>
+            <span class="item-txt">${esc(item.text)}</span>
+            <span class="item-by">${item.by==='mimi'?'🐱':'🌻'}</span>
+            <button class="del-btn" data-cat="${cat.id}" data-item="${item.id}">×</button>
+          </div>
+        `).join('')
+      }
+    </div>
+    <div class="add-form">
+      <div class="by-row">
+        <button class="by-btn${by==='mimi'?' active':''}" data-cat="${cat.id}" data-by="mimi">🐱 Mimi</button>
+        <button class="by-btn${by==='booh'?' active':''}" data-cat="${cat.id}" data-by="booh">🌻 Booh</button>
+      </div>
+      <div class="inp-row">
+        <input class="add-input" data-cat="${cat.id}" placeholder="Add a wish…" type="text" autocomplete="off">
+        <button class="add-btn" data-cat="${cat.id}">+</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
