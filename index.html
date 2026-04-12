@@ -42,6 +42,12 @@ html,body{background:#FDF8F3;font-family:'DM Sans',system-ui,sans-serif;min-heig
   color:#9C7B6A;font-size:.95rem;margin-top:6px;
   letter-spacing:.025em;position:relative;
 }
+.sync-dot{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:#C4A897;margin-left:8px;vertical-align:middle;
+  transition:background .4s;
+}
+.sync-dot.live{background:#4CAF50;box-shadow:0 0 6px rgba(76,175,80,.5)}
 
 .grid{
   max-width:1020px;margin:0 auto;
@@ -181,9 +187,10 @@ html,body{background:#FDF8F3;font-family:'DM Sans',system-ui,sans-serif;min-heig
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// Your config
+// ── Firebase config ──────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyBjYZdEHcXq39eZlpBdPu6Jx8pN4pQaE6k",
   authDomain: "mimi-booh-wishlist.firebaseapp.com",
@@ -193,181 +200,187 @@ const firebaseConfig = {
   appId: "1:179817074834:web:e0dd5dc41e736082da964b"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const fireApp = initializeApp(firebaseConfig);
+const db      = getFirestore(fireApp);
 
-// ---------------- EXISTING CONFIG ----------------
-const CATS=[
-  {id:'movies',icon:'🎬',title:'Movies & Shows',accent:'#7B2D8B',bg:'#F3E5F5'},
-  {id:'travel',icon:'✈️',title:'Travel Wishlist',accent:'#1565C0',bg:'#E3F2FD'},
-  {id:'dates',icon:'🕯️',title:'Date Ideas',accent:'#C2185B',bg:'#FCE4EC'},
-  {id:'fantasy',icon:'🔥',title:'Wild Fantasies',accent:'#BF360C',bg:'#FBE9E7'},
-  {id:'music',icon:'🎵',title:'Books, Shows & Music',accent:'#00695C',bg:'#E0F2F1'},
-  {id:'learn',icon:'🌱',title:'Learn Together',accent:'#558B2F',bg:'#F1F8E9'},
-  {id:'gifts',icon:'🎁',title:'Gifts for Each Other',accent:'#AD1457',bg:'#FCE4EC'},
-  {id:'goals',icon:'⭐',title:'Life Goals & Bucket List',accent:'#E65100',bg:'#FFF3E0'},
-  {id:'food',icon:'🍽️',title:'Restaurants to Try',accent:'#4E342E',bg:'#EFEBE9'},
+// ── Categories ───────────────────────────────────────────────────────────────
+const CATS = [
+  {id:'movies',  icon:'🎬', title:'Movies & Shows',          accent:'#7B2D8B', bg:'#F3E5F5'},
+  {id:'travel',  icon:'✈️', title:'Travel Wishlist',          accent:'#1565C0', bg:'#E3F2FD'},
+  {id:'dates',   icon:'🕯️', title:'Date Ideas',              accent:'#C2185B', bg:'#FCE4EC'},
+  {id:'fantasy', icon:'🔥', title:'Wild Fantasies',           accent:'#BF360C', bg:'#FBE9E7'},
+  {id:'music',   icon:'🎵', title:'Books, Shows & Music',     accent:'#00695C', bg:'#E0F2F1'},
+  {id:'learn',   icon:'🌱', title:'Learn Together',           accent:'#558B2F', bg:'#F1F8E9'},
+  {id:'gifts',   icon:'🎁', title:'Gifts for Each Other',     accent:'#AD1457', bg:'#FCE4EC'},
+  {id:'goals',   icon:'⭐', title:'Life Goals & Bucket List',  accent:'#E65100', bg:'#FFF3E0'},
+  {id:'food',    icon:'🍽️', title:'Restaurants to Try',      accent:'#4E342E', bg:'#EFEBE9'},
 ];
 
-let items={};
-let expanded=null;
-let addBy={};
+// ── State ────────────────────────────────────────────────────────────────────
+let items    = {};
+let expanded = null;
+let addBy    = {};
+let isLive   = false;
 
-CATS.forEach(c=>{
-  items[c.id]=[];
-  addBy[c.id]='mimi';
-});
+CATS.forEach(c => { items[c.id] = []; addBy[c.id] = 'mimi'; });
 
-// ---------------- REAL-TIME SYNC ----------------
+// ── Real-time listener ───────────────────────────────────────────────────────
 const colRef = collection(db, "wishlist");
 
-onSnapshot(colRef, (snapshot) => {
-  items = {};
+onSnapshot(colRef, snapshot => {
+  isLive = true;
+  items  = {};
   CATS.forEach(c => items[c.id] = []);
 
   snapshot.forEach(docSnap => {
-    const data = docSnap.data();
-    if (!items[data.cat]) items[data.cat] = [];
-
-    items[data.cat].push({
-      id: docSnap.id,
-      text: data.text,
-      by: data.by,
-      done: data.done
-    });
+    const d = docSnap.data();
+    if (!items[d.cat]) items[d.cat] = [];
+    items[d.cat].push({ id: docSnap.id, text: d.text, by: d.by, done: d.done });
   });
 
   render();
 });
 
-// ---------------- FUNCTIONS ----------------
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function esc(s){
   return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-async function doAdd(catId,val){
-  const txt=(val||'').trim();
-  if(!txt)return;
-
-  await addDoc(colRef,{
-    cat:catId,
-    text:txt,
-    by:addBy[catId]||'mimi',
-    done:false,
-    created:Date.now()
+async function doAdd(catId, val){
+  const txt = (val||'').trim();
+  if (!txt) return;
+  await addDoc(colRef, {
+    cat: catId, text: txt,
+    by: addBy[catId] || 'mimi',
+    done: false, created: Date.now()
   });
 }
 
-// ---------------- RENDER ----------------
+// ── Render ───────────────────────────────────────────────────────────────────
 function render(){
-  const root=document.getElementById('root');
-  root.innerHTML=`
+  const root = document.getElementById('root');
+  root.innerHTML = `
     <div class="app">
       <div class="hdr">
-        <h1 class="title">Mimi 🐱 ♡ Booh 🌻</h1>
+        <h1 class="title">Mimi 🐱 <span class="heart">♡</span> Booh 🌻<span class="sync-dot${isLive?' live':''}"></span></h1>
         <p class="sub">Our Little Universe of Wishes</p>
       </div>
       <div class="grid">
         ${CATS.map(renderCard).join('')}
       </div>
-      <div class="footer">made with ♡</div>
+      <div class="footer">made with ♡ — just for the two of you</div>
     </div>
   `;
 
-  root.querySelectorAll('.card-hdr').forEach(el=>{
-    el.onclick=()=>{
-      const id=el.dataset.cat;
-      expanded=expanded===id?null:id;
+  // Card expand/collapse
+  root.querySelectorAll('.card-hdr').forEach(el => {
+    el.onclick = () => {
+      const id = el.dataset.cat;
+      expanded = expanded === id ? null : id;
       render();
     };
   });
 
-  root.querySelectorAll('.check-btn').forEach(el=>{
-    el.onclick=async e=>{
+  // Toggle done
+  root.querySelectorAll('.check-btn').forEach(el => {
+    el.onclick = async e => {
       e.stopPropagation();
-      const {cat,item}=el.dataset;
-      const current = items[cat].find(i=>i.id==item);
-      await updateDoc(doc(db,"wishlist",item),{
-        done:!current.done
-      });
+      const { cat, item } = el.dataset;
+      const current = (items[cat] || []).find(i => i.id === item);
+      if (current) await updateDoc(doc(db, "wishlist", item), { done: !current.done });
     };
   });
 
-  root.querySelectorAll('.del-btn').forEach(el=>{
-    el.onclick=async e=>{
+  // Delete
+  root.querySelectorAll('.del-btn').forEach(el => {
+    el.onclick = async e => {
       e.stopPropagation();
-      const {item}=el.dataset;
-      await deleteDoc(doc(db,"wishlist",item));
+      await deleteDoc(doc(db, "wishlist", el.dataset.item));
     };
   });
 
-  root.querySelectorAll('.by-btn').forEach(el=>{
-    el.onclick=e=>{
+  // Switch who's adding
+  root.querySelectorAll('.by-btn').forEach(el => {
+    el.onclick = e => {
       e.stopPropagation();
-      addBy[el.dataset.cat]=el.dataset.by;
+      addBy[el.dataset.cat] = el.dataset.by;
       render();
     };
   });
 
-  root.querySelectorAll('.add-input').forEach(el=>{
-    el.onkeydown=e=>{
-      if(e.key==='Enter'){
+  // Add on Enter
+  root.querySelectorAll('.add-input').forEach(el => {
+    el.onkeydown = e => {
+      if (e.key === 'Enter') {
         e.stopPropagation();
-        doAdd(el.dataset.cat,el.value);
+        doAdd(el.dataset.cat, el.value);
+        el.value = '';
       }
     };
   });
 
-  root.querySelectorAll('.add-btn').forEach(el=>{
-    el.onclick=e=>{
+  // Add on + button
+  root.querySelectorAll('.add-btn').forEach(el => {
+    el.onclick = e => {
       e.stopPropagation();
-      const inp=root.querySelector(`.add-input[data-cat="${el.dataset.cat}"]`);
-      if(inp)doAdd(el.dataset.cat,inp.value);
+      const inp = root.querySelector(`.add-input[data-cat="${el.dataset.cat}"]`);
+      if (inp) { doAdd(el.dataset.cat, inp.value); inp.value = ''; inp.focus(); }
     };
   });
 }
 
-// ---------------- CARD ----------------
+// ── Card templates ───────────────────────────────────────────────────────────
 function renderCard(cat){
-  const list=items[cat.id]||[];
-  const done=list.filter(i=>i.done).length;
-  const isExp=expanded===cat.id;
+  const list  = items[cat.id] || [];
+  const done  = list.filter(i => i.done).length;
+  const isExp = expanded === cat.id;
 
-  return`
+  return `
   <div class="card${isExp?' open':''}" style="--accent:${cat.accent};--bg:${cat.bg}">
     <div class="card-hdr" data-cat="${cat.id}">
-      <div>${cat.icon} ${cat.title}</div>
-      <div>${list.length?`${done}/${list.length}`:''}</div>
+      <div class="card-left">
+        <span class="cat-icon">${cat.icon}</span>
+        <span class="cat-name">${cat.title}</span>
+      </div>
+      <div class="card-right">
+        ${list.length ? `<span class="badge">${done}/${list.length}</span>` : ''}
+        <span class="chev">▼</span>
+      </div>
     </div>
-    ${isExp?renderBody(cat,list):''}
+    ${isExp ? renderBody(cat, list) : ''}
   </div>`;
 }
 
-function renderBody(cat,list){
-  const by=addBy[cat.id]||'mimi';
+function renderBody(cat, list){
+  const by = addBy[cat.id] || 'mimi';
 
-  return`
+  return `
   <div class="card-body">
     <div class="items">
-      ${list.length===0
-        ?'<p class="empty">Nothing yet ✨</p>'
-        :list.map(item=>`
-          <div class="item${item.done?' done':''}">
-            <button class="check-btn" data-cat="${cat.id}" data-item="${item.id}">${item.done?'✓':'○'}</button>
+      ${list.length === 0
+        ? '<p class="empty">Nothing here yet — add your first wish! ✨</p>'
+        : list.map(item => `
+          <div class="item${item.done ? ' done' : ''}">
+            <button class="check-btn" data-cat="${cat.id}" data-item="${item.id}">${item.done ? '✓' : '○'}</button>
             <span class="item-txt">${esc(item.text)}</span>
-            <span>${item.by==='mimi'?'🐱':'🌻'}</span>
+            <span class="item-by">${item.by === 'mimi' ? '🐱' : '🌻'}</span>
             <button class="del-btn" data-item="${item.id}">×</button>
           </div>
         `).join('')
       }
     </div>
-
-    <input class="add-input" data-cat="${cat.id}" placeholder="Add a wish…">
-    <button class="add-btn" data-cat="${cat.id}">+</button>
+    <div class="add-form">
+      <div class="by-row">
+        <button class="by-btn${by === 'mimi' ? ' active' : ''}" data-cat="${cat.id}" data-by="mimi">🐱 Mimi</button>
+        <button class="by-btn${by === 'booh' ? ' active' : ''}" data-cat="${cat.id}" data-by="booh">🌻 Booh</button>
+      </div>
+      <div class="inp-row">
+        <input class="add-input" data-cat="${cat.id}" placeholder="Add a wish…" type="text" autocomplete="off">
+        <button class="add-btn" data-cat="${cat.id}">+</button>
+      </div>
+    </div>
   </div>`;
 }
 
