@@ -176,21 +176,74 @@ html,body{background:#FDF8F3;font-family:'DM Sans',system-ui,sans-serif;min-heig
 .error-banner code{background:rgba(0,0,0,.06);border-radius:4px;padding:1px 5px;font-size:.78rem;}
 
 /* ── Grid ── */
-.grid{max-width:1020px;margin:0 auto;padding:0 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start;}
+.grid{
+  max-width:1020px;margin:0 auto;padding:0 18px;
+  columns:3 280px;
+  column-gap:16px;
+}
+.grid .card{
+  break-inside:avoid;
+  margin-bottom:16px;
+  display:inline-block;
+  width:100%;
+}
+/* When any card is open, dim and shrink all siblings */
+.grid.has-open .card:not(.open){
+  opacity:.55;
+  transform:scale(.97);
+  box-shadow:0 1px 6px rgba(45,27,14,.04);
+  filter:saturate(.6);
+}
 
 /* ── Card ── */
-.card{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(45,27,14,.07),0 0 0 1px rgba(45,27,14,.04);border-top:4px solid var(--accent);transition:box-shadow .22s,transform .22s;overflow:hidden;}
-.card:hover{box-shadow:0 7px 26px rgba(45,27,14,.13),0 0 0 1px rgba(45,27,14,.06);transform:translateY(-2px)}
-.card.open{box-shadow:0 8px 32px rgba(45,27,14,.15),0 0 0 1px rgba(45,27,14,.08)}
-.card-hdr{padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;background:var(--bg);gap:8px;}
+.card{
+  background:#fff;border-radius:14px;
+  box-shadow:0 2px 12px rgba(45,27,14,.07),0 0 0 1px rgba(45,27,14,.04);
+  border-top:4px solid var(--accent);
+  transition:box-shadow .3s ease, transform .3s ease, opacity .3s ease, filter .3s ease;
+  overflow:hidden;will-change:transform,opacity;
+}
+.grid:not(.has-open) .card:hover{
+  box-shadow:0 7px 26px rgba(45,27,14,.13),0 0 0 1px rgba(45,27,14,.06);
+  transform:translateY(-3px);
+}
+.card.open{
+  box-shadow:0 12px 40px rgba(45,27,14,.18),0 0 0 1.5px var(--accent);
+  transform:translateY(-2px) scale(1.01);
+  opacity:1;filter:none;
+}
+.card-hdr{
+  padding:16px 18px;display:flex;justify-content:space-between;align-items:center;
+  cursor:pointer;user-select:none;background:var(--bg);gap:8px;
+  transition:background .2s;
+}
+.card.open .card-hdr{background:var(--bg)}
 .card-left{display:flex;align-items:center;gap:10px;min-width:0}
-.cat-icon{font-size:1.35rem;flex-shrink:0}
-.cat-name{font-family:'Playfair Display',serif;font-weight:700;font-size:.95rem;color:#2D1B0E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cat-icon{font-size:1.35rem;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.card.open .cat-icon{transform:scale(1.18)}
+.cat-name{
+  font-family:'Playfair Display',serif;font-weight:700;font-size:.95rem;color:#2D1B0E;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 .card-right{display:flex;align-items:center;gap:7px;flex-shrink:0}
-.badge{background:var(--accent);color:#fff;border-radius:12px;padding:2px 9px;font-size:.7rem;font-weight:600;letter-spacing:.03em;}
-.chev{color:var(--accent);font-size:.65rem;opacity:.65;transition:transform .2s}
+.badge{
+  background:var(--accent);color:#fff;border-radius:12px;
+  padding:2px 9px;font-size:.7rem;font-weight:600;letter-spacing:.03em;
+}
+.chev{color:var(--accent);font-size:.65rem;opacity:.65;transition:transform .28s cubic-bezier(.34,1.56,.64,1)}
 .card.open .chev{transform:rotate(180deg)}
-.card-body{padding:14px 18px 18px;border-top:1px solid rgba(45,27,14,.07);animation:fadeIn .18s ease;}
+
+/* Smooth expand: card-body slides in from top, no hard pop */
+.card-body{
+  padding:14px 18px 18px;
+  border-top:1px solid rgba(45,27,14,.07);
+  animation:bodySlideIn .28s cubic-bezier(.22,1,.36,1) both;
+  transform-origin:top center;
+}
+@keyframes bodySlideIn{
+  from{opacity:0;transform:translateY(-10px) scaleY(.96)}
+  to{opacity:1;transform:translateY(0) scaleY(1)}
+}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── Items ── */
@@ -341,12 +394,14 @@ onSnapshot(colRef,
 );
 
 // ── What's new
+// previousVisitTs is captured at login time, before we update the timestamp
+let previousVisitTs = 0;
+
 function computeWhatsNew(fresh){
   const other=currentUser==='mimi'?'booh':'mimi';
-  const lastTs=getLastSeen()[currentUser]||0;
   newSinceLastVisit=[];
   for(const cat of CATS){
-    const newOnes=(fresh[cat.id]||[]).filter(i=>i.by===other && (i.created||0)>lastTs);
+    const newOnes=(fresh[cat.id]||[]).filter(i=>i.by===other && (i.created||0)>previousVisitTs);
     newOnes.forEach(i=>newSinceLastVisit.push({text:i.text, cat:cat.id}));
   }
   showWhatsNew=true;
@@ -357,16 +412,18 @@ function doLogin(user){
   currentUser=user;
   firstSnapshotDone=false;
   CATS.forEach(c=>{ addBy[c.id]=user; commentBy[c.id]=user; });
+  // 1. Snapshot the PREVIOUS visit timestamp before overwriting it
+  previousVisitTs=getLastSeen()[user]||0;
+  // 2. Save "now" immediately — this visit is recorded regardless of what they do next
+  setLastSeen(user);
   if(snapshotReceived){ firstSnapshotDone=true; computeWhatsNew(items); }
   render();
 }
 function doLogout(){
-  if(currentUser) setLastSeen(currentUser);
   currentUser=null; showWhatsNew=false; newSinceLastVisit=[]; firstSnapshotDone=false;
   render();
 }
 function dismissWhatsNew(){
-  if(currentUser) setLastSeen(currentUser);
   showWhatsNew=false; render();
 }
 
@@ -496,8 +553,7 @@ function renderWhatsNew(){
   const other=currentUser==='mimi'?'booh':'mimi';
   const otherName=other.charAt(0).toUpperCase()+other.slice(1);
   const otherEmoji=other==='mimi'?'🐱':'🌻';
-  const myLastTs=getLastSeen()[currentUser]||0;
-  const sinceText=myLastTs?`since your last visit ${formatDate(myLastTs)}`:'since the beginning';
+  const sinceText=previousVisitTs?`since your last visit ${formatDate(previousVisitTs)}`:'since the beginning';
   const grouped={};
   newSinceLastVisit.forEach(i=>{ if(!grouped[i.cat]) grouped[i.cat]=[]; grouped[i.cat].push(i.text); });
   const hasSomething=newSinceLastVisit.length>0;
@@ -577,7 +633,7 @@ function render(){
         </div>
       </div>
       ${errorMsg?`<div class="error-banner"><strong>⚠️ Connection issue</strong>${esc(errorMsg)}<br><br>Quick fix → Firebase Console → Firestore Database → Rules → paste:<br><code>allow read, write: if true;</code> → Publish</div>`:''}
-      <div class="grid">${CATS.map(renderCard).join('')}</div>
+      <div class="grid${expanded?' has-open':''}">${CATS.map(renderCard).join('')}</div>
       <div class="footer">made with ♡ — just for the two of you</div>
     </div>`;
 
