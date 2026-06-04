@@ -292,7 +292,7 @@ html,body{background:#FDF8F3;font-family:'DM Sans',system-ui,sans-serif;min-heig
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, arrayUnion, arrayRemove, orderBy, query, limit }
+import { getFirestore, collection, addDoc, onSnapshot, getDoc, deleteDoc, doc, updateDoc, setDoc, arrayUnion, arrayRemove, orderBy, query, limit }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -307,16 +307,17 @@ const fireApp = initializeApp(firebaseConfig);
 const db = getFirestore(fireApp);
 
 const CATS = [
-  {id:'movies',  icon:'🎬', title:'Movies & Shows',         accent:'#7B2D8B', bg:'#F3E5F5'},
-  {id:'travel',  icon:'✈️', title:'Travel Wishlist',         accent:'#1565C0', bg:'#E3F2FD'},
-  {id:'dates',   icon:'🕯️', title:'Date Ideas',             accent:'#C2185B', bg:'#FCE4EC'},
-  {id:'fantasy', icon:'🔥', title:'Wild Fantasies',          accent:'#BF360C', bg:'#FBE9E7'},
-  {id:'music',   icon:'🎵', title:'Books, Shows & Music',    accent:'#00695C', bg:'#E0F2F1'},
-  {id:'learn',   icon:'🌱', title:'Learn Together',          accent:'#558B2F', bg:'#F1F8E9'},
-  {id:'gifts',   icon:'🎁', title:'Gifts for Each Other',    accent:'#AD1457', bg:'#FCE4EC'},
-  {id:'goals',   icon:'⭐', title:'Life Goals & Bucket List',accent:'#E65100', bg:'#FFF3E0'},
-  {id:'food',    icon:'🍽️', title:'Restaurants to Try',     accent:'#4E342E', bg:'#EFEBE9'},
-  {id:'misc',    icon:'✨', title:'Miscellaneous & Others',  accent:'#546E7A', bg:'#ECEFF1'},
+  {id:'movies',  icon:'🎬', title:'Movies & Shows',              accent:'#7B2D8B', bg:'#F3E5F5'},
+  {id:'travel',  icon:'✈️', title:'Travel Wishlist',              accent:'#1565C0', bg:'#E3F2FD'},
+  {id:'dates',   icon:'🕯️', title:'Date Ideas',                  accent:'#C2185B', bg:'#FCE4EC'},
+  {id:'fantasy', icon:'🔥', title:'Wild Fantasies',               accent:'#BF360C', bg:'#FBE9E7'},
+  {id:'music',   icon:'🎵', title:'Books, Shows & Music',         accent:'#00695C', bg:'#E0F2F1'},
+  {id:'learn',   icon:'🌱', title:'Learn Together',               accent:'#558B2F', bg:'#F1F8E9'},
+  {id:'gifts',   icon:'🎁', title:'Gifts for Each Other',         accent:'#AD1457', bg:'#FCE4EC'},
+  {id:'goals',   icon:'⭐', title:'Life Goals & Bucket List',     accent:'#E65100', bg:'#FFF3E0'},
+  {id:'food',    icon:'🍽️', title:'Restaurants to Try',          accent:'#4E342E', bg:'#EFEBE9'},
+  {id:'health',  icon:'🧘', title:'Health, Fitness & Wellbeing', accent:'#00838F', bg:'#E0F7FA'},
+  {id:'misc',    icon:'✨', title:'Miscellaneous & Others',       accent:'#546E7A', bg:'#ECEFF1'},
 ];
 const CAT_MAP = Object.fromEntries(CATS.map(c=>[c.id,c]));
 const REACTIONS = ['❤️','🌻','🐱','✨','🔥'];
@@ -352,13 +353,21 @@ onSnapshot(colRef, snapshot=>{
       fresh[d.cat].push({id:ds.id,text:d.text,by:d.by,done:d.done,created:d.created||0,comments:Array.isArray(d.comments)?d.comments:[],reactions:d.reactions||{}});
   });
 
-  // detectAndNotify compares items (previous snapshot) vs fresh (this snapshot)
-  // items must still hold the OLD data at this point — do NOT update it before this call
-  if(firstSnapshotDone && currentUser) detectAndNotify(fresh);
-  if(!firstSnapshotDone && currentUser){ firstSnapshotDone=true; computeWhatsNew(fresh); }
-
-  // Deep clone fresh into items so prevSnapshot stays independent
-  items=JSON.parse(JSON.stringify(fresh)); saveLocal(items); render();
+  if(currentUser){
+    if(!firstSnapshotDone){
+      // First live snapshot after login — establish clean baseline, no notifications
+      firstSnapshotDone=true;
+      computeWhatsNew(fresh);
+      items=JSON.parse(JSON.stringify(fresh)); // clean baseline
+    } else {
+      // Subsequent snapshots — compare old items vs fresh to detect real changes
+      detectAndNotify(fresh);
+      items=JSON.parse(JSON.stringify(fresh));
+    }
+  } else {
+    items=JSON.parse(JSON.stringify(fresh));
+  }
+  saveLocal(items); render();
 }, err=>{
   clearTimeout(connectTimeout); syncStatus='error';
   errorMsg=`Firebase error: "${err.message}".`; render();
@@ -448,14 +457,35 @@ function detectAndNotify(fresh){
   }
 }
 
-// ── Push notification
+// ── Notifications stored in Firebase so they persist across sessions
+async function loadNotifications(){
+  try{
+    const ds=await getDoc(doc(db,"notifications",currentUser));
+    if(ds.exists()){
+      notifications=(ds.data().list||[]).slice(-10);
+      unreadNotifs=notifications.filter(n=>!n.read).length;
+      renderNotifBadge();
+      renderNotifList();
+    }
+  }catch(e){ /* fail silently */ }
+}
+
+async function saveNotifications(){
+  try{
+    await setDoc(doc(db,"notifications",currentUser),{list:notifications.slice(-10)});
+  }catch(e){ /* fail silently */ }
+}
+
 function pushNotification(n){
-  notifications.unshift({...n, id:`n_${Date.now()}_${Math.random().toString(36).slice(2,5)}`});
-  if(notifications.length>50) notifications=notifications.slice(0,50);
+  const notif={...n, id:`n_${Date.now()}_${Math.random().toString(36).slice(2,5)}`, read:false};
+  notifications.unshift(notif);
+  // Keep only last 10
+  if(notifications.length>10) notifications=notifications.slice(0,10);
   if(!notifPanelOpen) unreadNotifs++;
   renderNotifBadge();
   showToast(n);
   renderNotifList();
+  saveNotifications();
 }
 
 // ── Login / logout
@@ -464,9 +494,12 @@ function doLogin(user){
   CATS.forEach(c=>{ addBy[c.id]=user; commentBy[c.id]=user; });
   previousVisitTs=getLastSeen()[user]||0;
   setLastSeen(user);
-  if(snapshotReceived){ firstSnapshotDone=true; computeWhatsNew(items); }
+  // Don't set firstSnapshotDone here — let the snapshot handler do it
+  // so items is always live data before detectAndNotify runs
+  if(snapshotReceived){ computeWhatsNew(items); }
   document.getElementById('chat-fab').style.display='flex';
   initChat();
+  loadNotifications();
   render();
 }
 function doLogout(){
@@ -571,15 +604,30 @@ function renderNotifList(){
   list.innerHTML=notifications.map((n,i)=>{
     const avatar=n.by==='mimi'?'🐱':'🌻';
     const name=n.by==='mimi'?'Mimi':'Booh';
-    let txt='';
-    if(n.type==='wish') txt=`<strong>${name}</strong> added a wish in ${CAT_MAP[n.cat]?.icon||''} ${CAT_MAP[n.cat]?.title||''}: <em>"${esc(n.text?.slice(0,40)||'')}"</em>`;
-    else if(n.type==='comment') txt=`<strong>${name}</strong> commented on <em>"${esc(n.wishText?.slice(0,25)||'')}"</em>: "${esc(n.text?.slice(0,40)||'')}"`;
-    else if(n.type==='reaction') txt=`<strong>${name}</strong> reacted ${n.emoji} to <em>"${esc(n.wishText?.slice(0,30)||'')}"</em>`;
-    else if(n.type==='done') txt=`<strong>${name}</strong> completed <em>"${esc(n.text?.slice(0,35)||'')}"</em> ✓`;
-    else if(n.type==='chat') txt=`<strong>${name}</strong> sent a message: <em>"${esc(n.text?.slice(0,40)||'')}"</em>`;
-    return `<div class="notif-item${i<unreadNotifs?' unread':''}">
+    let icon='', txt='';
+    if(n.type==='wish'){
+      icon='✨';
+      txt=`<strong>${name}</strong> added <em>"${esc((n.text||'').slice(0,35))}"</em> to ${CAT_MAP[n.cat]?.icon||''} ${CAT_MAP[n.cat]?.title||''}`;
+    } else if(n.type==='comment'){
+      icon='💬';
+      txt=`<strong>${name}</strong> commented on <em>"${esc((n.wishText||'').slice(0,25))}"</em>: <em>"${esc((n.text||'').slice(0,35))}"</em>`;
+    } else if(n.type==='reaction'){
+      icon=n.emoji||'❤️';
+      txt=`<strong>${name}</strong> reacted ${n.emoji} to <em>"${esc((n.wishText||'').slice(0,35))}"</em>`;
+    } else if(n.type==='done'){
+      icon='✅';
+      txt=`<strong>${name}</strong> completed <em>"${esc((n.text||'').slice(0,35))}"</em>`;
+    } else if(n.type==='chat'){
+      icon='💬';
+      txt=`<strong>${name}</strong> sent a message: <em>"${esc((n.text||'').slice(0,40))}"</em>`;
+    }
+    const unread=!n.read;
+    return `<div class="notif-item${unread?' unread':''}">
       <span class="notif-avatar">${avatar}</span>
-      <div class="notif-content"><div class="notif-text">${txt}</div><div class="notif-time">${timeAgo(n.ts)}</div></div>
+      <div class="notif-content">
+        <div class="notif-text">${txt}</div>
+        <div class="notif-time">${timeAgo(n.ts)}</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -750,7 +798,7 @@ function render(){
   const {dot,text}=statusLabel();
   const meEmoji=currentUser==='mimi'?'🐱':'🌻';
   const wnOverlay=showWhatsNew?renderWhatsNew():'';
-  root.innerHTML=`${wnOverlay}<div class="app"><div class="hdr"><h1 class="title">Mimi 🐱 <span class="heart">♡</span> Booh 🌻</h1><p class="sub">Our Little Universe of Wishes</p><div class="hdr-meta"><span class="logged-as">${meEmoji} Logged in as <strong>${currentUser.charAt(0).toUpperCase()+currentUser.slice(1)}</strong></span><button class="switch-btn" id="switch-user-btn">Switch ↩</button><button class="notif-btn" id="notif-btn">🔔 Activity<span class="notif-badge${unreadNotifs>0?' show':''}" id="notif-badge">${unreadNotifs>9?'9+':unreadNotifs||''}</span></button></div><div class="status-bar"><span class="dot ${dot}"></span><span>${text}</span></div><div class="backup-bar"><button class="backup-btn" id="export-btn"><span class="btn-icon">💾</span>Download backup</button><button class="backup-btn import-btn" id="import-btn"><span class="btn-icon">📂</span>Restore from backup</button></div></div>${errorMsg?`<div class="error-banner"><strong>⚠️ Connection issue</strong>${esc(errorMsg)}</div>`:''}<div class="grid${expanded?' has-open':''}">${CATS.map(renderCard).join('')}</div><div class="footer">made with ♡ — just for the two of us</div></div>`;
+  root.innerHTML=`${wnOverlay}<div class="app"><div class="hdr"><h1 class="title">Mimi 🐱 <span class="heart">♡</span> Booh 🌻</h1><p class="sub">Our Little Universe of Wishes</p><div class="hdr-meta"><span class="logged-as">${meEmoji} Logged in as <strong>${currentUser.charAt(0).toUpperCase()+currentUser.slice(1)}</strong></span><button class="switch-btn" id="switch-user-btn">Switch ↩</button><button class="notif-btn" id="notif-btn">🔔 Activity<span class="notif-badge${unreadNotifs>0?' show':''}" id="notif-badge">${unreadNotifs>9?'9+':unreadNotifs||''}</span></button></div><div class="status-bar"><span class="dot ${dot}"></span><span>${text}</span></div><div class="backup-bar"><button class="backup-btn" id="export-btn"><span class="btn-icon">💾</span>Download backup</button><button class="backup-btn import-btn" id="import-btn"><span class="btn-icon">📂</span>Restore from backup</button></div></div>${errorMsg?`<div class="error-banner"><strong>⚠️ Connection issue</strong>${esc(errorMsg)}</div>`:''}<div class="grid${expanded?' has-open':''}">${CATS.map(renderCard).join('')}</div><div class="footer">made with ♡ — just for the two of you</div></div>`;
 
   const wnBtn=document.getElementById('wn-enter-btn');
   if(wnBtn) wnBtn.onclick=dismissWhatsNew;
@@ -761,7 +809,11 @@ function render(){
     notifPanelOpen=!notifPanelOpen;
     document.getElementById('notif-panel').classList.toggle('open',notifPanelOpen);
     document.getElementById('notif-overlay-bg').classList.toggle('open',notifPanelOpen);
-    if(notifPanelOpen){ unreadNotifs=0; renderNotifBadge(); renderNotifList(); }
+    if(notifPanelOpen){
+      unreadNotifs=0;
+      notifications=notifications.map(n=>({...n,read:true}));
+      renderNotifBadge(); renderNotifList(); saveNotifications();
+    }
   };
 
   root.querySelectorAll('.card-hdr').forEach(el=>{
